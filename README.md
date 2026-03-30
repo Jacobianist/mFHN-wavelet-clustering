@@ -193,6 +193,28 @@ result.h5
 └── @attributes     # Simulation metadata (parameters, timestamp, etc.)
 ```
 
+### Configuring Output Components
+
+By default, only the **u** component is saved to reduce output file size. To save additional components (**v**, **w**):
+
+1. Edit `src/h5_exporter.h` and modify the configuration macros:
+
+   ```cpp
+   #define SAVE_U_COMPONENT 1  // Always 1 (required)
+   #define SAVE_V_COMPONENT 1  // Set to 1 to save v component
+   #define SAVE_W_COMPONENT 1  // Set to 1 to save w component
+   ```
+
+2. Recompile the project:
+
+   ```bash
+   cd build && ninja
+   ```
+
+3. Run the simulation — the HDF5 output will include only the enabled components
+
+This allows you to selectively save components based on your analysis needs without modifying the solver logic.
+
 ### HDF5 Metadata Attributes
 
 The output file includes simulation metadata as attributes for reproducibility:

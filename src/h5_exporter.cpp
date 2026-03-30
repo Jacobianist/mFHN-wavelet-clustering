@@ -95,7 +95,7 @@ void HDF5Writer::writeMetadata(const SimParams& params)
 /**
  * @brief Constructs and initializes the HDF5 writer.
  *
- * Creates an HDF5 file with three datasets (u, v, w) for storing simulation results.
+ * Creates an HDF5 file with datasets for enabled components (u, v, w).
  * Uses chunked storage with deflate compression (level 6) for efficient I/O.
  *
  * For 1D: datasets have shape (total_snapshots, N)
@@ -107,7 +107,18 @@ void HDF5Writer::writeMetadata(const SimParams& params)
  * @param dim Spatial dimension (must be 1 or 2)
  * @throws std::runtime_error if file creation fails or dim is invalid
  */
-HDF5Writer::HDF5Writer(const std::string& filename, int N, int total_snapshots, int dim) : N_(N), total_snapshots_(total_snapshots), dim_(dim), file_id_(-1), dataset_u_(-1), dataset_v_(-1), dataset_w_(-1), filespace_(-1), memspace_(-1)
+HDF5Writer::HDF5Writer(const std::string& filename, int N, int total_snapshots, int dim)
+    : N_(N), total_snapshots_(total_snapshots), dim_(dim), file_id_(-1),
+#if SAVE_U_COMPONENT
+      dataset_u_(-1),
+#endif
+#if SAVE_V_COMPONENT
+      dataset_v_(-1),
+#endif
+#if SAVE_W_COMPONENT
+      dataset_w_(-1),
+#endif
+      filespace_(-1), memspace_(-1)
 {
     file_id_ = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
     if (file_id_ < 0) {
@@ -125,9 +136,15 @@ HDF5Writer::HDF5Writer(const std::string& filename, int N, int total_snapshots, 
         H5Pset_chunk(plist, 2, chunk_dims);
         H5Pset_deflate(plist, 6);  // Compression level 6
 
+#if SAVE_U_COMPONENT
         dataset_u_ = H5Dcreate(file_id_, "u", H5T_NATIVE_FLOAT, filespace_, H5P_DEFAULT, plist, H5P_DEFAULT);
+#endif
+#if SAVE_V_COMPONENT
         dataset_v_ = H5Dcreate(file_id_, "v", H5T_NATIVE_FLOAT, filespace_, H5P_DEFAULT, plist, H5P_DEFAULT);
+#endif
+#if SAVE_W_COMPONENT
         dataset_w_ = H5Dcreate(file_id_, "w", H5T_NATIVE_FLOAT, filespace_, H5P_DEFAULT, plist, H5P_DEFAULT);
+#endif
 
         H5Pclose(plist);
 
@@ -144,9 +161,15 @@ HDF5Writer::HDF5Writer(const std::string& filename, int N, int total_snapshots, 
         H5Pset_chunk(plist, 3, chunk_dims);
         H5Pset_deflate(plist, 6);  // Compression level 6
 
+#if SAVE_U_COMPONENT
         dataset_u_ = H5Dcreate(file_id_, "u", H5T_NATIVE_FLOAT, filespace_, H5P_DEFAULT, plist, H5P_DEFAULT);
+#endif
+#if SAVE_V_COMPONENT
         dataset_v_ = H5Dcreate(file_id_, "v", H5T_NATIVE_FLOAT, filespace_, H5P_DEFAULT, plist, H5P_DEFAULT);
+#endif
+#if SAVE_W_COMPONENT
         dataset_w_ = H5Dcreate(file_id_, "w", H5T_NATIVE_FLOAT, filespace_, H5P_DEFAULT, plist, H5P_DEFAULT);
+#endif
 
         H5Pclose(plist);
 
@@ -164,9 +187,15 @@ HDF5Writer::HDF5Writer(const std::string& filename, int N, int total_snapshots, 
 HDF5Writer::~HDF5Writer()
 {
     if (file_id_ >= 0) {
+#if SAVE_U_COMPONENT
         if (dataset_u_ >= 0) H5Dclose(dataset_u_);
+#endif
+#if SAVE_V_COMPONENT
         if (dataset_v_ >= 0) H5Dclose(dataset_v_);
+#endif
+#if SAVE_W_COMPONENT
         if (dataset_w_ >= 0) H5Dclose(dataset_w_);
+#endif
         if (filespace_ >= 0) H5Sclose(filespace_);
         if (memspace_ >= 0) H5Sclose(memspace_);
         H5Fclose(file_id_);
@@ -177,7 +206,7 @@ HDF5Writer::~HDF5Writer()
  * @brief Writes a single time step snapshot to the HDF5 file.
  *
  * Uses hyperslab selection to write data at the specified snapshot index.
- * Writes all three variables (u, v, w) sequentially.
+ * Writes enabled variables (u, v, w) sequentially.
  *
  * @param step_idx Snapshot index to write (0-based, must be < total_snapshots)
  * @param h_u Host array containing activator variable data
@@ -188,7 +217,19 @@ void HDF5Writer::writeStep(int step_idx, const float* h_u, const float* h_v, con
 {
     if (step_idx >= total_snapshots_ || step_idx < 0) return;
 
+#if SAVE_U_COMPONENT
     hid_t filespace = H5Dget_space(dataset_u_);
+#else
+    // If no components are saved, we still need a filespace for hyperslab selection
+    // Use dataset_u_'s space if it exists, otherwise create a temporary one
+    if (dim_ == 1) {
+        hsize_t dims[2] = {static_cast<hsize_t>(total_snapshots_), static_cast<hsize_t>(N_)};
+        filespace = H5Screate_simple(2, dims, nullptr);
+    } else {
+        hsize_t dims[3] = {static_cast<hsize_t>(total_snapshots_), static_cast<hsize_t>(N_), static_cast<hsize_t>(N_)};
+        filespace = H5Screate_simple(3, dims, nullptr);
+    }
+#endif
 
     if (dim_ == 1) {
         // 1D: select hyperslab [step_idx, 0] with count [1, N]
@@ -202,10 +243,16 @@ void HDF5Writer::writeStep(int step_idx, const float* h_u, const float* h_v, con
         H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, nullptr, count, nullptr);
     }
 
-    // Write data for all three variables
+    // Write data for enabled components
+#if SAVE_U_COMPONENT
     H5Dwrite(dataset_u_, H5T_NATIVE_FLOAT, memspace_, filespace, H5P_DEFAULT, h_u);
+#endif
+#if SAVE_V_COMPONENT
     H5Dwrite(dataset_v_, H5T_NATIVE_FLOAT, memspace_, filespace, H5P_DEFAULT, h_v);
+#endif
+#if SAVE_W_COMPONENT
     H5Dwrite(dataset_w_, H5T_NATIVE_FLOAT, memspace_, filespace, H5P_DEFAULT, h_w);
+#endif
 
     H5Sclose(filespace);
 }

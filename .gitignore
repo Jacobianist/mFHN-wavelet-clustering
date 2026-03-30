@@ -66,3 +66,4 @@ Thumbs.db
 # processing python scripts and notebooks
 config.json
 soup/
+last_snapshots/

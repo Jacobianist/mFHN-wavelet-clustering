@@ -7,6 +7,15 @@
 
 #include "params.h"
 
+// ============================================================================
+// CONFIGURATION: Toggle which components to save
+// ============================================================================
+// Set to 1 to save the component, 0 to skip it
+#define SAVE_U_COMPONENT 1
+#define SAVE_V_COMPONENT 0  // Set to 1 to save v component
+#define SAVE_W_COMPONENT 0  // Set to 1 to save w component
+// ============================================================================
+
 /**
  * @brief HDF5 file writer for simulation output.
  *
@@ -14,9 +23,9 @@
  * Supports both 1D and 2D simulations with chunked storage and compression.
  *
  * File structure:
- * - /u: dataset of shape (num_snapshots, N) for 1D or (num_snapshots, N, N) for 2D
- * - /v: dataset of shape (num_snapshots, N) for 1D or (num_snapshots, N, N) for 2D
- * - /w: dataset of shape (num_snapshots, N) for 1D or (num_snapshots, N, N) for 2D
+ * - /u: dataset of shape (num_snapshots, N) for 1D or (num_snapshots, N, N) for 2D (if SAVE_U_COMPONENT=1)
+ * - /v: dataset of shape (num_snapshots, N) for 1D or (num_snapshots, N, N) for 2D (if SAVE_V_COMPONENT=1)
+ * - /w: dataset of shape (num_snapshots, N) for 1D or (num_snapshots, N, N) for 2D (if SAVE_W_COMPONENT=1)
  * - /: attributes with simulation metadata (parameters, timestamps, etc.)
  */
 class HDF5Writer
@@ -64,9 +73,15 @@ class HDF5Writer
 
    private:
     hid_t file_id_;    ///< HDF5 file identifier
+#if SAVE_U_COMPONENT
     hid_t dataset_u_;  ///< Dataset identifier for variable u
+#endif
+#if SAVE_V_COMPONENT
     hid_t dataset_v_;  ///< Dataset identifier for variable v
+#endif
+#if SAVE_W_COMPONENT
     hid_t dataset_w_;  ///< Dataset identifier for variable w
+#endif
     hid_t filespace_;  ///< File dataspace identifier
     hid_t memspace_;   ///< Memory dataspace identifier
 
