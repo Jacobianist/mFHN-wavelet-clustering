@@ -251,7 +251,7 @@ int main(int argc, char* argv[])
         Logger logger(full_path.string() + "/simulation.log");
         logger.log("mFHN Solver");
         logger.log("Simulation started");
-        logger.log("Config: N=" + std::to_string(params.N) + ", dt=" + std::to_string(params.dt) + ", dx=" + std::to_string(params.dx) + ", alpha=" + std::to_string(params.model.alpha) + ", eps3=" + std::to_string(params.model.eps3));
+        logger.log("Config: N=" + std::to_string(params.N) + ", dt=" + std::to_string(params.dt) + ", dx=" + std::to_string(params.dx) + ", a=" + std::to_string(params.model.a) + ", eps3=" + std::to_string(params.model.eps3));
         logger.log("Stability check: " + std::string(params.is_stable() ? "PASSED" : "FAILED"));
 
         // Initialize host arrays

@@ -9,7 +9,7 @@ set(CMAKE_CUDA_ARCHITECTURES 86)
 
 find_package(CUDAToolkit REQUIRED)
 find_package(nlohmann_json REQUIRED)
-find_package(HDF5 REQUIRED COMPONENTS CXX)
+find_package(HDF5 CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
 
 add_executable(mfhn_solver
@@ -25,7 +25,7 @@ target_include_directories(mfhn_solver PRIVATE
 target_link_libraries(mfhn_solver
     CUDA::cudart
     nlohmann_json::nlohmann_json
-    HDF5::HDF5
+    hdf5::hdf5-shared
     ZLIB::ZLIB
 )
 

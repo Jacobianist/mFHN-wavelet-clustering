@@ -13,7 +13,7 @@
 // Set to 1 to save the component, 0 to skip it
 #define SAVE_U_COMPONENT 1
 #define SAVE_V_COMPONENT 0  // Set to 1 to save v component
-#define SAVE_W_COMPONENT 0  // Set to 1 to save w component
+#define SAVE_W_COMPONENT 1  // Set to 1 to save w component
 // ============================================================================
 
 /**

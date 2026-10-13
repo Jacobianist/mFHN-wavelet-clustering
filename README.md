@@ -39,7 +39,7 @@ The solver uses an explicit time-stepping scheme:
 ## Project Structure
 
 ```
-mFHN-equation-explicit-solver/
+mFHN-wavelet-clustering/
 ├── CMakeLists.txt              # CMake build configuration
 ├── config_template.json        # Runtime configuration parameters
 ├── README.md                   # This documentation file
@@ -55,22 +55,30 @@ mFHN-equation-explicit-solver/
 │   └── logger.h                # File/console logging utility
 └── utils/                      # Python utilities
     ├── initial_conditions_*.h5 # Example initial conditions (HDF5 format)
-    └── plot_snapshots.py       # Visualization script for HDF5 output
-```
+    ├── megaplot.py             # Visualization script for 252 snapshots
+    ├── simulation_runner.py    # Automation script for computational experiments
+    ├── initial_field_generator.py # tool for generating custom 2D initial conditions to HDF5 format
+    ├── clustering_pipeline.py  # Comprehensive clustering framework and validation
+    └── wavelets-on-interval/   # C++ source code (Wavelet Analysis)
+        └─ fwt01.cpp / fwt01.h  # CDV wavelet core (1D DWT on finite interval)
+ ```
 
 ### Source Files Description
 
-| File                                | Description                                                              |
-| ----------------------------------- | ------------------------------------------------------------------------ |
-| `main.cu`                           | Program entry point; handles initialization, time-stepping loop, and I/O |
-| `solver_explicit.cu`                | CUDA kernels for 1D and 2D explicit integration                          |
-| `solver_explicit.cuh`               | Header with CUDA kernel declarations                                     |
-| `params.h`                          | Data structures for model and simulation parameters                      |
-| `config.h` / `config.cpp`           | JSON configuration loading and validation                                |
-| `h5_exporter.h` / `h5_exporter.cpp` | HDF5 file writer for simulation snapshots                                |
-| `cuda_utils.h`                      | CUDA error checking macros and RAII memory wrappers                      |
-| `logger.h`                          | Simple logging utility for console and file output                       |
-| `utils/plot_snapshots.py`           | Python script to visualize simulation results                            |
+| File | Description |
+| :--- | :--- |
+| `main.cu` | Program entry point; handles initialization, time-stepping loop, and I/O |
+| `solver_explicit.cu` | CUDA kernels for 1D and 2D explicit integration |
+| `solver_explicit.cuh` | Header with CUDA kernel declarations | 
+| `params.h` | Data structures for model and simulation parameters |
+| `config.h` / `config.cpp` | JSON configuration loading and validation |
+| `h5_exporter.h` / `h5_exporter.cpp` | HDF5 file writer for simulation snapshots |
+| `cuda_utils.h` | CUDA error checking macros and RAII memory wrappers |
+| `logger.h` | Simple logging utility for console and file output |
+| `utils/megaplot.py` | Advanced visualization tool for generating publication-ready supplementary figures (1D/2D 252 snapshots). |
+| `utils/simulation_runner.py` | Automation script for computational experiments; handles parameter sweeping and batch execution of 1D/2D simulations. |
+| `utils/initial_field_generator.py` | Script for generating, previewing, and exporting custom 2D initial conditions to HDF5 format. |
+| `utils/clustering_pipeline.py` | Comprehensive clustering framework featuring bootstrap stability analysis and statistical validation |
 
 ## Configuration
 
@@ -112,50 +120,13 @@ Edit `config_template.json` to set simulation parameters:
 - nlohmann/json library
 - ZLIB
 
-### Linux / WSL
-
-**Option 1: System Packages (Recommended)**
-
 ```bash
-# Ubuntu/Debian
-sudo apt-get update
-sudo apt-get install -y cmake ninja-build libhdf5-serial-dev nlohmann-json3-dev zlib1g-dev
-
-# Arch Linux
-sudo pacman -S cmake ninja hdf5 nlohmann-json zlib
-
-# Fedora
-sudo dnf install cmake ninja-build hdf5-devel nlohmann-json-devel zlib-devel
-
 # Build
 mkdir build && cd build
 cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
 ninja
 ```
 
-**Option 2: vcpkg**
-
-```bash
-# Install vcpkg dependencies
-./vcpkg install hdf5 nlohmann-json zlib
-
-# Build
-mkdir build && cd build
-cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=../vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release ..
-ninja
-```
-
-### Windows (MSVC)
-
-```powershell
-# Install dependencies via vcpkg
-vcpkg install hdf5 nlohmann-json zlib
-
-# Build
-mkdir build && cd build
-cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release ..
-ninja
-```
 
 ## Running
 
@@ -236,26 +207,6 @@ Output data uses chunked storage with deflate compression (level 6) for efficien
 - **1D chunks**: `[1, N]` — one snapshot per chunk
 - **2D chunks**: `[1, N, N]` — one snapshot per chunk
 
-## Visualization
-
-A Python script is provided to visualize simulation results:
-
-```bash
-# Install dependencies
-pip install h5py matplotlib numpy
-
-# Plot 1D simulation results
-python utils/plot_snapshots.py results/2026-03-16/120000_dim1_N1024/result.h5
-
-# Plot 2D simulation results
-python utils/plot_snapshots.py results/2026-03-16/120000_dim2_N1024/result.h5
-```
-
-The script displays:
-
-- **1D**: Line plots of u(x) for initial and final snapshots
-- **2D**: Heatmaps of u(x,y) for initial and final snapshots
-
 ## Initial Conditions
 
 ### Default Generation
@@ -293,3 +244,27 @@ The solver automatically checks this condition and warns if the time step may be
 - **Simulation metadata**: All parameters stored in output file for reproducibility
 - **Performance timing**: Per-step timing logged to simulation.log
 - **Stability validation**: CFL condition checked before simulation starts
+
+## Wavelet Stage: Orthogonal DWT on a Finite Interval
+
+For a bounded spatial domain, classical DWT with periodic or symmetric extension injects
+spurious energy at the boundaries, corrupting the wavelet energy spectrum near edges.
+We therefore use the **CDV construction** (Cohen, Daubechies, Vial, 1993), which builds
+an orthonormal wavelet basis adapted to the interval with prescribed boundary conditions.
+
+### Implementation (`wavelets-on-interval/`)
+The wavelet core is located in wavelets-on-interval/. It can be compiled as a standalone executable or integrated into the main CMake.
+
+| File | Role |
+|---|---|
+| `fwt01.h` / `fwt01.cpp` | 1D CDV forward/inverse DWT kernels on a finite interval |
+| `read_h5.cpp` | HDF5 reader: loads a snapshot of `u` (or `v`, `w`) |
+
+**1D:** direct application of `fwt01` along the spatial axis.
+
+**2D (separable):** the 1D transform is applied **row-wise, then column-wise**, producing
+the four standard sub-bands `{LL, LH, HL, HH}` per level. This preserves orthogonality
+because the CDV basis is orthonormal in each direction independently.
+
+---
+

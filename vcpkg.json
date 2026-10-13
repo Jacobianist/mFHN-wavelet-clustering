@@ -1,0 +1,9 @@
+{
+  "name": "cpp-mfhn",
+  "version": "1.0.0",
+  "dependencies": [
+    "nlohmann-json",
+    "zlib",
+    "hdf5"
+  ]
+}
